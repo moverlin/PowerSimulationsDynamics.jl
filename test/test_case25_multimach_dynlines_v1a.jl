@@ -58,6 +58,9 @@ function simulate_example()
         #@test (diff_val[1] < 1e-3)
         #println(" (diff_val[1] < 1e-3): ", (diff_val[1] < 1e-3))
 
+        print("Showing state initial values..")
+        show_states_initial_value(sim)
+
         # Obtain small signal results for initial conditions
         small_sig = small_signal_analysis(sim)
         #@test small_sig.stable
@@ -83,11 +86,13 @@ function simulate_example()
         # https://nrel-siip.github.io/PowerSimulationsDynamics.jl/stable/quick_start_guide/#Make-a-plot-of-the-results
         #angle_gen_102 = get_state_series(results, ("generator-102-1", :δ));
         #state_series = get_state_series(results, "generator");
+        # Differential States, "generator-102-1": ψq, ψd, eq_p, ed_p, eq_pp, ed_pp, δ, ω, Vf
+        # Differential States, "generator-101-1": ψq, ψd, eq_p, ed_p, eq_pp, ed_pp, δ, ω, Vf, xg
 
         # Obtain benchmark data from PSCAD
-        M = get_csv_data(csv_file)
-        t_pscad = M[:, 1] .- t_offset
-        v_pscad = M[:, 2]
+        #M = get_csv_data(csv_file)
+        #t_pscad = M[:, 1] .- t_offset
+        #v_pscad = M[:, 2]
 
         # Relaxed constraint to account for mismatch in damping
         #@test LinearAlgebra.norm(v - v_pscad) <= 0.1
