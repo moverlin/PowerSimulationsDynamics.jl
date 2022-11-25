@@ -1,6 +1,8 @@
-using PowerSimulationsDynamics
-using Sundials
-using DelimitedFiles
+using PowerSimulationsDynamics # 
+using Sundials                 # To get solvers for numerical integration
+using DelimitedFiles           #
+using PyPlot, Plots            # Plotting packages
+using  LaTeXStrings;           # To write latex strings in plots
 
 const PSID = PowerSimulationsDynamics
 
@@ -15,7 +17,8 @@ The perturbation increase the reference of mechanical power of generator-2 from 
 ##################################################
 
 #include(joinpath(TEST_FILES_DIR, "data_tests/test25.jl"))
-include("data_tests/test25.jl")
+include("data_tests/test25.jl") # data_tests/dynamic_test_data.jl has a lot of the numbers for inertia, machine impedances, etc.
+                                # data_tests/data_utils.jl
 
 include("utils/get_results.jl") # fun. get_init_values_for_comparison(sim)
 
@@ -33,7 +36,7 @@ t_offset = 49.0
 
 # Define Fault using Callbacks
 gen2 = get_dynamic_injector(get_component(Generator, sys, "generator-102-1"));
-Pref_change = ControlReferenceChange(1.0, gen2, :P_ref, 0.9);
+Pref_change = ControlReferenceChange(1.0, gen2, :P_ref, 0.9); # P_ref: 0.8 --> 0.9
 
 function simulate_example()
     # @testset "Test 25 Marconato with Dynamic Lines ResidualModel" begin
@@ -58,7 +61,10 @@ function simulate_example()
         #@test (diff_val[1] < 1e-3)
         #println(" (diff_val[1] < 1e-3): ", (diff_val[1] < 1e-3))
 
-        print("Showing state initial values..")
+        set_points = get_setpoints(sim)
+        println("Showing set points for all dynamic devices.."); println(set_points)
+
+        println("\nShowing state initial values..")
         show_states_initial_value(sim)
 
         # Obtain small signal results for initial conditions
@@ -73,14 +79,7 @@ function simulate_example()
                 PSID.SIMULATION_FINALIZED
         results = read_results(sim)
 
-        #print(results.fields())
-
-        println("typeof(results): ", typeof(results))
-
-        # Obtain voltage magnitude data
-        series = get_voltage_magnitude_series(results, 102)
-        t = series[1]
-        v = series[2]
+        return results
 
         # Obtain series from results.
         # https://nrel-siip.github.io/PowerSimulationsDynamics.jl/stable/quick_start_guide/#Make-a-plot-of-the-results
@@ -108,5 +107,63 @@ function simulate_example()
 
 end # function: simulate_example
 
-simulate_example()
+results = simulate_example()
 
+#print(results.fields())
+
+println("typeof(results): ", typeof(results))
+
+# Obtain voltage magnitude data
+series = get_voltage_magnitude_series(results, 101)
+t_v101 = series[1]; v_101  = series[2]
+println("size(t_v101), size(v_101): ", size(t_v101), size(v_101))
+series = get_voltage_magnitude_series(results, 102)
+t_v102 = series[1]; v_102  = series[2]
+series = get_voltage_magnitude_series(results, 103)
+t_v103 = series[1]; v_103  = series[2]
+
+PyPlot.close("all");
+
+	# Plot 1: Bus voltage magnitudes
+	#PyPlot.figure(figsize=[9.6, 7.2], dpi=500.0); # New plot figure window: width/height in inches, dots-per-inch.
+	PyPlot.figure(); # New plot figure window: width/height in inches, dots-per-inch.
+	PyPlot.suptitle("Bus Voltage Magnitudes");
+    PyPlot.plot(t_v101, v_101, linewidth=1.0, label="Bus 101");
+    PyPlot.plot(t_v102, v_102, linewidth=1.0, label="Bus 102");
+    PyPlot.plot(t_v103, v_103, linewidth=1.0, label="Bus 103");
+      PyPlot.legend();
+	  PyPlot.xlabel("Time [sec.]");
+	  PyPlot.ylabel(L"$V_{mag}$ [V]");
+	  PyPlot.grid(b=true, which="both", axis="both");
+	PyPlot.savefig(string("Plots/Bus_Voltage_Magnitudes", ".png"), bbox_inches="tight");
+	PyPlot.show(block=false); # if block=true, we must close figure to continue julia script execution.
+
+PyPlot.close("all");
+
+#=
+PyPlot.close("all");
+
+	# Plot 1: Line current between grid source and load.
+	#PyPlot.figure(figsize=[9.6, 7.2], dpi=500.0); # New plot figure window: width/height in inches, dots-per-inch.
+	PyPlot.figure(); # New plot figure window: width/height in inches, dots-per-inch.
+	PyPlot.suptitle("Line Current Between grid source and Transformer Primary Side");
+	PyPlot.subplot(3, 1, 1);
+	  PyPlot.plot(sol_meas_t, IG, linewidth=1.0);
+	  PyPlot.xlabel("Time [sec.]");
+	  PyPlot.ylabel(L"$I_{line}$ [A]");
+	  PyPlot.grid(b=true, which="both", axis="both");
+	PyPlot.subplot(3, 1, 2);
+	  PyPlot.plot(sol_meas_t, ILm, linewidth=1.0);
+	  PyPlot.xlabel("Time [sec.]");
+	  PyPlot.ylabel(L"$I_{Lm}$ [A]");
+	  PyPlot.grid(b=true, which="both", axis="both");
+	PyPlot.subplot(3, 1, 3);
+	  PyPlot.plot(sol_meas_t, Vcm, linewidth=1.0);
+	  PyPlot.xlabel("Time [sec.]");
+	  PyPlot.ylabel(L"$V_{cm}$ [V]");
+	  PyPlot.grid(b=true, which="both", axis="both");
+	PyPlot.savefig(string("PLOTS/jPlot1_Transformer_Primary_Side_states", ".png"), bbox_inches="tight");
+	PyPlot.show(block=false); # if block=true, we must close figure to continue julia script execution.
+
+	PyPlot.close("all");
+=#
