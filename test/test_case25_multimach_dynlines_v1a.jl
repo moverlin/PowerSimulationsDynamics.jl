@@ -55,7 +55,7 @@ println("system_PowerLoads: ", system_PowerLoads)
 
 # https://nrel-siip.github.io/PowerSimulationsDynamics.jl/stable/perturbations/
 load_device = get_component(ElectricLoad, sys, "load1031")
-load_change = LoadChange(20.0, load_device, :P_ref, 1.6)
+load_change = LoadChange(20.0, load_device, :P_ref, 1.6) # 1.8 --> 1.6
 
 function simulate_example()
     # @testset "Test 25 Marconato with Dynamic Lines ResidualModel" begin
@@ -121,11 +121,28 @@ results = simulate_example()
 
 println("typeof(results): ", typeof(results))
 
-# Obtain voltage magnitude data
-series = get_voltage_magnitude_series(results, 101); t_v101 = series[1]; v_101  = series[2]
-series = get_voltage_magnitude_series(results, 102); t_v102 = series[1]; v_102  = series[2]
-series = get_voltage_magnitude_series(results, 103); t_v103 = series[1]; v_103  = series[2]
+# Get branch current flows
+series = get_real_current_branch_flow(results,      "BUS 1-BUS 3-i_1"); t_real_101_to_103 = series[1]; I_real_101_to_103 = series[2];
+series = get_imaginary_current_branch_flow(results, "BUS 1-BUS 3-i_1"); t_imag_101_to_103 = series[1]; I_imag_101_to_103 = series[2];
+series = get_real_current_branch_flow(results,      "BUS 1-BUS 2-i_1"); t_real_101_to_102 = series[1]; I_real_101_to_102 = series[2];
+series = get_imaginary_current_branch_flow(results, "BUS 1-BUS 2-i_1"); t_imag_101_to_102 = series[1]; I_imag_101_to_102 = series[2];
+series = get_real_current_branch_flow(results,      "BUS 2-BUS 3-i_1"); t_real_102_to_103 = series[1]; I_real_102_to_103 = series[2];
+series = get_imaginary_current_branch_flow(results, "BUS 2-BUS 3-i_1"); t_imag_102_to_103 = series[1]; I_imag_102_to_103 = series[2];
+
+# Obtain bus voltage data
+series = get_voltage_magnitude_series(results, 101); t_mag_v101 = series[1]; v_mag_101  = series[2]
+series = get_voltage_angle_series(results, 101); t_angle_v101 = series[1]; v_angle_101  = series[2]
+series = get_voltage_magnitude_series(results, 102); t_mag_v102 = series[1]; v_mag_102  = series[2]
+series = get_voltage_angle_series(results, 102); t_angle_v102 = series[1]; v_angle_102  = series[2]
+series = get_voltage_magnitude_series(results, 103); t_mag_v103 = series[1]; v_mag_103  = series[2]
+series = get_voltage_angle_series(results, 103); t_angle_v103 = series[1]; v_angle_103  = series[2]
 # println("size(t_v101), size(v_101): ", size(t_v101), size(v_101))
+
+# Active and Reactive powers at load bus, bus 3:
+bus_3_active_power   = real(v_mag_103 .* exp.(1im*v_angle_103)) .* (I_real_101_to_103 .+ I_real_102_to_103) + 
+                       imag(v_mag_103 .* exp.(1im*v_angle_103)) .* (I_imag_101_to_103 .+ I_imag_102_to_103)
+bus_3_reactive_power = imag(v_mag_103 .* exp.(1im*v_angle_103)) .* (I_real_101_to_103 .+ I_real_102_to_103) - 
+                       real(v_mag_103 .* exp.(1im*v_angle_103)) .* (I_imag_101_to_103 .+ I_imag_102_to_103)
 
 # Get active power series
 P_series = get_activepower_series(results, "generator-101-1"); t_P101 = P_series[1]; P_101  = P_series[2]
@@ -140,7 +157,9 @@ Q_series = get_reactivepower_series(results, "load1031"); t_Q103 = Q_series[1]; 
 
 PyPlot.close("all");
 
+    # --------------------------------
 	# Plot 1: Active Powers 
+    # --------------------------------
 	#PyPlot.figure(figsize=[9.6, 7.2], dpi=500.0); # New plot figure window: width/height in inches, dots-per-inch.
 	PyPlot.figure(); # New plot figure window: width/height in inches, dots-per-inch.
 	PyPlot.suptitle("Bus Active Powers");
@@ -148,8 +167,8 @@ PyPlot.close("all");
     PyPlot.plot(t_Q101, Q_101, linewidth=1.0, label="Bus 101 Reactive Power");
     PyPlot.plot(t_P102, P_102, linewidth=1.0, label="Bus 102 Active Power");
     PyPlot.plot(t_Q102, Q_102, linewidth=1.0, label="Bus 102 Reactive Power");
-    PyPlot.plot(t_P103, P_103, linewidth=1.0, label="Bus 103 Active Power");
-    PyPlot.plot(t_Q103, Q_103, linewidth=1.0, label="Bus 103 Reactive Power");
+    PyPlot.plot(t_P103, bus_3_active_power, linewidth=1.0, label="Bus 103 Active Power");
+    PyPlot.plot(t_Q103, bus_3_reactive_power, linewidth=1.0, label="Bus 103 Reactive Power");
       PyPlot.legend();
 	  PyPlot.xlabel("Time [sec.]");
 	  PyPlot.ylabel(L"$P$, $Q$ [p.u.]");
@@ -159,13 +178,15 @@ PyPlot.close("all");
 
 PyPlot.close("all");
 
-	# Plot 1: Bus voltage magnitudes
+    # --------------------------------
+	# Plot 2: Bus voltage magnitudes
+    # --------------------------------
 	#PyPlot.figure(figsize=[9.6, 7.2], dpi=500.0); # New plot figure window: width/height in inches, dots-per-inch.
 	PyPlot.figure(); # New plot figure window: width/height in inches, dots-per-inch.
 	PyPlot.suptitle("Bus Voltage Magnitudes");
-    PyPlot.plot(t_v101, v_101, linewidth=1.0, label="Bus 101");
-    PyPlot.plot(t_v102, v_102, linewidth=1.0, label="Bus 102");
-    PyPlot.plot(t_v103, v_103, linewidth=1.0, label="Bus 103");
+    PyPlot.plot(t_mag_v101, v_mag_101, linewidth=1.0, label="Bus 101");
+    PyPlot.plot(t_mag_v102, v_mag_102, linewidth=1.0, label="Bus 102");
+    PyPlot.plot(t_mag_v103, v_mag_103, linewidth=1.0, label="Bus 103");
       PyPlot.legend();
 	  PyPlot.xlabel("Time [sec.]");
 	  PyPlot.ylabel(L"$V_{mag}$ [p.u.]");
